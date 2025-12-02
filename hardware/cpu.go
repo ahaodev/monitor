@@ -18,18 +18,17 @@ func GetCPUInfo() string {
 	return pkg.ProtoDataFmt(percent, temp, nil, nil)
 }
 func CPUPercent() string {
-	// CPU 使用率
-	percent, err := cpu.Percent(time.Second, true)
+	// CPU 使用率 - false 表示获取整体CPU使用率
+	percent, err := cpu.Percent(time.Second, false)
 	if err != nil {
 		pkg.Log.Error(err)
+		return "N/A"
 	}
-	// 计算总和
-	sum := 0.0
-	for _, num := range percent {
-		sum += num
+	if len(percent) == 0 {
+		return "N/A"
 	}
-	// 将结果转换为字符串并保留两位小数
-	result := strconv.FormatFloat(sum, 'f', 1, 64)
+	// 获取整体CPU使用率
+	result := strconv.FormatFloat(percent[0], 'f', 1, 64)
 	return fmt.Sprintf("%s%%", result)
 }
 func CPUTemp() string {
@@ -38,11 +37,15 @@ func CPUTemp() string {
 	case "darwin":
 		fmt.Println("Running on macOS")
 	case "linux":
-		fmt.Println("Running on Linux")
-	case "windows": //Unused variable 'temp'
-		rand.Seed(time.Now().UnixNano()) // 设置随机数种子为当前时间的纳秒级别
-		minTemperature := 39.0           // 最小温度
-		maxTemperature := 39.9           // 最大温度
+		tempStr, err := getCPUTempLinux()
+		if err == nil {
+			// 解析温度值
+			fmt.Sscanf(tempStr, "CPU:%fC", &temp)
+		}
+	case "windows":
+		rand.Seed(time.Now().UnixNano())
+		minTemperature := 39.0
+		maxTemperature := 39.9
 		temp = minTemperature + rand.Float64()*(maxTemperature-minTemperature)
 		fmt.Printf("Windows CPU TEMP: %.1f °C\n", temp)
 	default:
