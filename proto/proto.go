@@ -22,9 +22,11 @@ const (
 	CmdErr   byte = 0x04 //错误
 	CmdReset byte = 0x05 //重置
 
+	CmdPageNext byte = 0x0A //下一页 (手势触发)
+	CmdPagePrev byte = 0x0B //上一页 (手势触发)
+
 	CmdCPU  byte = 0x10 //CPU
 	CmdMem  byte = 0x11 //内存
 	CmdNet  byte = 0x12 //网络
 	CmdDisk byte = 0x13 //磁盘
-
 )
