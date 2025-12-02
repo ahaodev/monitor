@@ -22,14 +22,18 @@ const (
 	ModeCPU = iota
 	ModeMem
 	ModeNet
+	ModeDisk
+	ModeClock
 	ModeCount // 模式总数
 )
 
 var (
-	currentMode = ModeCPU
-	modeMutex   sync.Mutex
-	serialPort  *serial.Port
-	refreshChan = make(chan struct{}, 1) // 立即刷新通道
+	currentMode     = ModeCPU
+	modeMutex       sync.Mutex
+	serialPort      *serial.Port
+	refreshChan     = make(chan struct{}, 1) // 立即刷新通道
+	lastClockSync   time.Time                // 上次时钟同步时间
+	clockSyncNeeded = true                   // 是否需要同步时钟
 )
 
 func main() {
@@ -77,14 +81,31 @@ func sendCurrentModeData(err error, s *serial.Port) {
 		memInfo(err, s)
 	case ModeNet:
 		netInfo(err, s)
+	case ModeDisk:
+		diskInfo(err, s)
+	case ModeClock:
+		// 时钟模式：首次进入或每小时同步一次
+		if clockSyncNeeded || time.Since(lastClockSync) >= time.Hour {
+			clockInfo(err, s)
+			lastClockSync = time.Now()
+			clockSyncNeeded = false
+		}
 	}
 }
 
 // 切换到下一个模式
 func nextMode() {
 	modeMutex.Lock()
+	oldMode := currentMode
 	currentMode = (currentMode + 1) % ModeCount
+	newMode := currentMode
 	modeMutex.Unlock()
+
+	// 如果切换到时钟模式，标记需要同步
+	if newMode == ModeClock && oldMode != ModeClock {
+		clockSyncNeeded = true
+	}
+
 	pkg.Log.Printf("Mode changed to: %d", currentMode)
 
 	// 立即刷新显示
@@ -97,8 +118,16 @@ func nextMode() {
 // 切换到上一个模式
 func prevMode() {
 	modeMutex.Lock()
+	oldMode := currentMode
 	currentMode = (currentMode - 1 + ModeCount) % ModeCount
+	newMode := currentMode
 	modeMutex.Unlock()
+
+	// 如果切换到时钟模式，标记需要同步
+	if newMode == ModeClock && oldMode != ModeClock {
+		clockSyncNeeded = true
+	}
+
 	pkg.Log.Printf("Mode changed to: %d", currentMode)
 
 	// 立即刷新显示
@@ -199,6 +228,26 @@ func netInfo(err error, s *serial.Port) {
 func memInfo(err error, s *serial.Port) {
 	mem := hardware.GetMemInfo()
 	bytes := proto.BuildMsg(proto.CmdMem, mem)
+	_, err = s.Write(bytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func diskInfo(err error, s *serial.Port) {
+	disk := hardware.GetDiskInfoForDisplay()
+	bytes := proto.BuildMsg(proto.CmdDisk, disk)
+	_, err = s.Write(bytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func clockInfo(err error, s *serial.Port) {
+	now := time.Now()
+	// 格式: "时,分,秒"
+	timeStr := fmt.Sprintf("%d,%d,%d", now.Hour(), now.Minute(), now.Second())
+	bytes := proto.BuildMsg(proto.CmdClock, timeStr)
 	_, err = s.Write(bytes)
 	if err != nil {
 		log.Fatal(err)

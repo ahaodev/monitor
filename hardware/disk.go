@@ -5,52 +5,85 @@ import (
 	"github.com/shirou/gopsutil/v3/disk"
 	"log"
 	"math/rand"
+	"monitor/pkg"
 	"runtime"
 	"strconv"
 	"time"
 )
 
 type DiskInfo struct {
-	Mountpoint string
-	TotalGB    float64
-	UsedGB     float64
+	Mountpoint  string
+	TotalGB     float64
+	UsedGB      float64
+	UsedPercent float64
+}
+
+// GetDiskInfoForDisplay 获取磁盘信息用于LCD显示，格式: "使用率%,已用/总量"
+func GetDiskInfoForDisplay() string {
+	d := disks()
+	if len(d) == 0 {
+		return "N/A,N/A"
+	}
+
+	// 使用根分区或第一个分区
+	var target DiskInfo
+	for _, di := range d {
+		if di.Mountpoint == "/" || di.Mountpoint == "C:\\" {
+			target = di
+			break
+		}
+	}
+	if target.Mountpoint == "" {
+		target = d[0]
+	}
+
+	// 使用率
+	usedPercent := fmt.Sprintf("%.1f%%", target.UsedPercent)
+	// 已用/总量 (GB)
+	usage := fmt.Sprintf("%.0f/%.0fG", target.UsedGB, target.TotalGB)
+
+	return pkg.ProtoDataFmt(usedPercent, usage, nil, nil)
 }
 
 func GetDiskInfo() string {
 	d := disks()
 	dt := diskTemp()
+	if len(d) == 0 {
+		return "N/A"
+	}
 	name := d[0].Mountpoint
 	total := d[0].TotalGB
 	used := d[0].UsedGB
 	return fmt.Sprintf("%s,%sG,%sG,%s", name, strconv.FormatFloat(total, 'f', 1, 64), strconv.FormatFloat(used, 'f', 1, 64), dt)
 }
+
 func disks() []DiskInfo {
 	// 获取所有磁盘的信息
 	partitions, err := disk.Partitions(false)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Get disk partitions error: %v", err)
+		return nil
 	}
 	var diskInfos []DiskInfo
 	// 遍历每个磁盘
 	for _, partition := range partitions {
-		fmt.Printf("Disk(%s)\n", partition.Mountpoint)
-
 		// 获取磁盘使用情况
 		usage, err := disk.Usage(partition.Mountpoint)
 		if err != nil {
-			log.Fatal(err)
+			continue
 		}
-		total := float64(usage.Total) / 1024 / 1024 / 1024
-		used := float64(usage.Used) / 1024 / 1024 / 1024
+		// 使用 1000 基准 (GB)，匹配系统显示
+		const GB = 1000 * 1000 * 1000
+		total := float64(usage.Total) / GB
+		used := float64(usage.Used) / GB
 		// 将关键信息添加到数组中
 		diskInfo := DiskInfo{
-			Mountpoint: partition.Mountpoint,
-			TotalGB:    total,
-			UsedGB:     used,
+			Mountpoint:  partition.Mountpoint,
+			TotalGB:     total,
+			UsedGB:      used,
+			UsedPercent: usage.UsedPercent,
 		}
 		diskInfos = append(diskInfos, diskInfo)
-		fmt.Printf("Total: %.2f GB\n", total)
-		fmt.Printf("Used: %.2f GB\n", used)
 	}
 	return diskInfos
 }
