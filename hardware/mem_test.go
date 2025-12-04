@@ -3,5 +3,6 @@ package hardware
 import "testing"
 
 func TestMemory(t *testing.T) {
-	Mem()
+	s := GetMemInfo()
+	t.Log(s)
 }

@@ -7,18 +7,19 @@ import (
 )
 
 func Net() (string, error) {
-	prevNetStat, err := net.IOCounters(true)
-	if err != nil {
+	// 使用 false 获取所有网卡的汇总数据
+	prevNetStat, err := net.IOCounters(false)
+	if err != nil || len(prevNetStat) == 0 {
 		fmt.Printf("获取网络信息时出错: %s", err)
 		return "", err
 	}
 
 	time.Sleep(time.Second) // 等待一秒钟
 
-	currNetStat, err := net.IOCounters(true)
-	if err != nil {
+	currNetStat, err := net.IOCounters(false)
+	if err != nil || len(currNetStat) == 0 {
 		fmt.Printf("获取网络信息时出错: %s", err)
-		return "", nil
+		return "", err
 	}
 
 	// 计算每秒的进站和出站数据

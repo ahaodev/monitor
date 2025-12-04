@@ -1,8 +1,7 @@
 package proto
 
 import (
-	"fmt"
-	"monitor/pkg"
+	"log"
 )
 
 // Pack struct
@@ -23,32 +22,14 @@ type Pack struct {
 
 // BuildMsg 构建协议报文
 func BuildMsg(command byte, data string) []byte {
-	pkg.Log.Printf("serial send->%x %s ", command, data)
+	log.Printf("send->%x %s", command, data)
 	dataLength := len(data)
 	message := []byte{STX, command, byte(dataLength)}
 	message = append(message, []byte(data)...)
 	checksum := CalculateChecksum([]byte(data))
 	message = append(message, checksum)
-	pkg.Log.Printf(" %x %x %x %x %x ", STX, command, dataLength, data, checksum)
+	log.Printf(" %x %x %x %x %x", STX, command, dataLength, data, checksum)
 	return message
-}
-
-// ParseMsg 解析协议报文
-func ParseMsg(message []byte) (byte, byte, string, byte, error) {
-	if message[0] != STX {
-		return 0, 0, "", 0, fmt.Errorf("invalid start byte")
-	}
-
-	command := message[1]
-	dataLength := int(message[2])
-	data := string(message[3 : 3+dataLength])
-	checksum := message[3+dataLength]
-
-	if CalculateChecksum(message[:3+dataLength]) != checksum {
-		return 0, 0, "", 0, fmt.Errorf("invalid checksum")
-	}
-
-	return command, byte(dataLength), data, checksum, nil
 }
 
 // CalculateChecksum 异或校验

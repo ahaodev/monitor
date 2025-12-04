@@ -22,6 +22,11 @@ const (
 	CmdErr   byte = 0x04 //错误
 	CmdReset byte = 0x05 //重置
 
+	CmdPage1 byte = 0x06 //页面1
+	CmdPage2 byte = 0x07 //页面2
+	CmdPage3 byte = 0x08 //页面3
+	CmdPage4 byte = 0x09 //页面4
+
 	CmdPageNext byte = 0x0A //下一页 (手势触发)
 	CmdPagePrev byte = 0x0B //上一页 (手势触发)
 
