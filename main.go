@@ -28,12 +28,14 @@ const (
 )
 
 var (
-	currentMode     = ModeCPU
+	currentMode     = ModeClock // 默认时钟模式
 	modeMutex       sync.Mutex
 	serialPort      *serial.Port
 	refreshChan     = make(chan struct{}, 1) // 立即刷新通道
 	lastClockSync   time.Time                // 上次时钟同步时间
 	clockSyncNeeded = true                   // 是否需要同步时钟
+	lastDiskSync    time.Time                // 上次磁盘同步时间
+	diskSyncNeeded  = true                   // 是否需要同步磁盘
 )
 
 func main() {
@@ -57,6 +59,11 @@ func main() {
 	serialPort = s
 	go serialListener(s)
 
+	// 等待 Arduino 启动完成
+	log.Println("Waiting for Arduino to start...")
+	time.Sleep(3 * time.Second)
+	log.Println("Arduino should be ready now")
+
 	ticker := time.Tick(1 * time.Second)
 	for {
 		select {
@@ -76,16 +83,24 @@ func sendCurrentModeData(err error, s *serial.Port) {
 
 	switch mode {
 	case ModeCPU:
+		// CPU: 每秒发送
 		cpuInfo2(err, s)
 	case ModeMem:
+		// 内存: 每秒发送
 		memInfo(err, s)
 	case ModeNet:
+		// 网络: 每秒发送
 		netInfo(err, s)
 	case ModeDisk:
-		diskInfo(err, s)
+		// 磁盘: 每分钟发送一次
+		if diskSyncNeeded || time.Since(lastDiskSync) >= time.Minute {
+			diskInfo(err, s)
+			lastDiskSync = time.Now()
+			diskSyncNeeded = false
+		}
 	case ModeClock:
-		// 时钟模式：首次进入或每小时同步一次
-		if clockSyncNeeded || time.Since(lastClockSync) >= time.Hour {
+		// 时钟: 每15分钟校准一次
+		if clockSyncNeeded || time.Since(lastClockSync) >= 15*time.Minute {
 			clockInfo(err, s)
 			lastClockSync = time.Now()
 			clockSyncNeeded = false
@@ -101,9 +116,13 @@ func nextMode() {
 	newMode := currentMode
 	modeMutex.Unlock()
 
-	// 如果切换到时钟模式，标记需要同步
+	// 切换到时钟模式，标记需要同步
 	if newMode == ModeClock && oldMode != ModeClock {
 		clockSyncNeeded = true
+	}
+	// 切换到磁盘模式，标记需要同步
+	if newMode == ModeDisk && oldMode != ModeDisk {
+		diskSyncNeeded = true
 	}
 
 	pkg.Log.Printf("Mode changed to: %d", currentMode)
@@ -123,9 +142,13 @@ func prevMode() {
 	newMode := currentMode
 	modeMutex.Unlock()
 
-	// 如果切换到时钟模式，标记需要同步
+	// 切换到时钟模式，标记需要同步
 	if newMode == ModeClock && oldMode != ModeClock {
 		clockSyncNeeded = true
+	}
+	// 切换到磁盘模式，标记需要同步
+	if newMode == ModeDisk && oldMode != ModeDisk {
+		diskSyncNeeded = true
 	}
 
 	pkg.Log.Printf("Mode changed to: %d", currentMode)
