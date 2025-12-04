@@ -6,6 +6,16 @@ import (
 	"time"
 )
 
+// formatSpeed 根据速度大小自动选择合适的单位
+func formatSpeed(bytesPerSec float64) string {
+	if bytesPerSec >= 1024*1024 {
+		return fmt.Sprintf("%.1fMB/s", bytesPerSec/1024/1024)
+	} else if bytesPerSec >= 1024 {
+		return fmt.Sprintf("%.1fKB/s", bytesPerSec/1024)
+	}
+	return fmt.Sprintf("%.0fB/s", bytesPerSec)
+}
+
 func Net() (string, error) {
 	// 使用 false 获取所有网卡的汇总数据
 	prevNetStat, err := net.IOCounters(false)
@@ -22,10 +32,13 @@ func Net() (string, error) {
 		return "", err
 	}
 
-	// 计算每秒的进站和出站数据
-	incomingKbps := float64(currNetStat[0].BytesRecv-prevNetStat[0].BytesRecv) / 1024
-	outgoingKbps := float64(currNetStat[0].BytesSent-prevNetStat[0].BytesSent) / 1024
+	// 计算每秒的进站和出站字节数
+	incomingBps := float64(currNetStat[0].BytesRecv - prevNetStat[0].BytesRecv)
+	outgoingBps := float64(currNetStat[0].BytesSent - prevNetStat[0].BytesSent)
 
-	fmt.Printf("每秒进站数据: %.2f kbps, 每秒出站数据: %.2f kbps\n", incomingKbps, outgoingKbps)
-	return fmt.Sprintf("%.2fkbps,%.2fkbps", incomingKbps, outgoingKbps), nil
+	inStr := formatSpeed(incomingBps)
+	outStr := formatSpeed(outgoingBps)
+
+	fmt.Printf("每秒进站数据: %s, 每秒出站数据: %s\n", inStr, outStr)
+	return fmt.Sprintf("%s,%s", inStr, outStr), nil
 }

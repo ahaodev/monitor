@@ -1,0 +1,50 @@
+kind: pipeline
+type: exec
+name: build-and-publish
+
+platform:
+  os: linux
+  arch: amd64
+
+trigger:
+  branch:
+    - main
+    - master
+  event:
+    - push
+    - tag
+
+steps:
+  - name: build-push
+    commands:
+      - echo "Building and pushing to Docker Hub..."
+      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - docker build -t $DOCKER_USERNAME/monitor:latest .
+      - docker build -t $DOCKER_USERNAME/monitor:${DRONE_COMMIT_SHA:0:8} .
+      - docker push $DOCKER_USERNAME/monitor:latest
+      - docker push $DOCKER_USERNAME/monitor:${DRONE_COMMIT_SHA:0:8}
+    environment:
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+    when:
+      event:
+        - push
+
+  - name: build-push-tag
+    commands:
+      - echo "Building and pushing tag ${DRONE_TAG}..."
+      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - docker build -t $DOCKER_USERNAME/monitor:${DRONE_TAG} .
+      - docker build -t $DOCKER_USERNAME/monitor:latest .
+      - docker push $DOCKER_USERNAME/monitor:${DRONE_TAG}
+      - docker push $DOCKER_USERNAME/monitor:latest
+    environment:
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+    when:
+      event:
+        - tag

@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/ttyACM0:/dev/ttyACM0
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    environment:
+      - TZ=Asia/Shanghai

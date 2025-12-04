@@ -26,6 +26,6 @@ WORKDIR /app
 # 从第一阶段复制编译好的二进制文件到当前阶段
 COPY --from=builder /app/runner .
 # COPY --from=builder /app/config.yml .
-CMD ["cd /path/to/myproject; go test"]
+
 # 运行应用
 CMD ["./runner"]
