@@ -7,6 +7,8 @@ import (
 	"monitor/pkg"
 )
 
+const GiB = 1024 * 1024 * 1024
+
 func GetMemInfo() string {
 	vmStat, err := mem.VirtualMemory()
 	if err != nil {
@@ -15,8 +17,8 @@ func GetMemInfo() string {
 	}
 
 	usedPercent := fmt.Sprintf("%.1f%%", vmStat.UsedPercent)
-	usedGB := float64(vmStat.Used) / GB
-	totalGB := float64(vmStat.Total) / GB
+	usedGB := float64(vmStat.Used) / GiB
+	totalGB := float64(vmStat.Total) / GiB
 	usage := fmt.Sprintf("%.1f/%.0fG", usedGB, totalGB)
 
 	return pkg.ProtoDataFmt(usedPercent, usage, nil, nil)

@@ -162,7 +162,8 @@ func handleRequest(s *serial.Port, cmd byte) {
 		response = hardware.GetDiskInfoForDisplay()
 	case proto.CmdClock:
 		now := time.Now()
-		response = fmt.Sprintf("%d,%d,%d", now.Hour(), now.Minute(), now.Second())
+		weekdays := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
+		response = fmt.Sprintf("%d,%d,%d,%s,%s", now.Hour(), now.Minute(), now.Second(), now.Format("2006-01-02"), weekdays[now.Weekday()])
 	default:
 		logError("Unknown command: 0x%02X", cmd)
 		return
